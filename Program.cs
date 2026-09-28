@@ -1,3 +1,4 @@
+using LossPrevention.Api.Common.Extensions;
 using LossPrevention.Api.Data;
 using Microsoft.OpenApi.Models;
 
@@ -16,8 +17,8 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// 2. Register Database Connection Factory
-builder.Services.AddSingleton<IDbConnectionFactory, DbConnectionFactory>();
+// 2. Register Application Services (Repositories, Services & DbConnectionFactory)
+builder.Services.AddApplicationServices();
 
 // 3. Configure CORS Policy
 var corsOrigins = builder.Configuration.GetSection("CorsOrigins").Get<string[]>() 
@@ -36,7 +37,11 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// 4. Configure HTTP Request Pipeline
+// 4. Global Middleware Pipeline
+app.UseMiddleware<LossPrevention.Api.Middleware.GlobalExceptionMiddleware>();
+app.UseMiddleware<LossPrevention.Api.Middleware.RequestLoggingMiddleware>();
+
+// 5. Configure Swagger & OpenAPI
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
