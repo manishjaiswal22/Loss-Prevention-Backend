@@ -1,5 +1,4 @@
 using LossPrevention.Api.Models.DTOs.Auth;
-using LossPrevention.Api.Models.DTOs.Common;
 using LossPrevention.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,36 +9,38 @@ namespace LossPrevention.Api.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, ILogger<AuthController> logger)
     {
         _authService = authService;
+        _logger = logger;
     }
 
     /// <summary>
-    /// Authenticate user credentials against [dbo].[sp_GetUserDetails]
+    /// Authenticate user credentials against [RFID_ReaderDB]
     /// </summary>
+    /// <param name="request">Username and password credentials</param>
+    /// <returns>Authentication result with user profile and session token</returns>
     [HttpPost("login")]
-    [ProducesResponseType(typeof(ApiResponse<LoginResponse>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<LoginResponse>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        var result = await _authService.AuthenticateAsync(request);
-        if (!result.Success)
+        if (request == null)
         {
-            return BadRequest(result);
+            return BadRequest(new LoginResponse
+            {
+                Success = false,
+                Message = "Request body cannot be null.",
+                Timestamp = DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss")
+            });
         }
-        return Ok(result);
-    }
 
-    /// <summary>
-    /// Fetch user details / directory using [dbo].[sp_GetUserDetails]
-    /// </summary>
-    [HttpGet("users")]
-    [ProducesResponseType(typeof(ApiResponse<IEnumerable<UserDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetUsers([FromQuery] int? userId, [FromQuery] string? username)
-    {
-        var result = await _authService.GetUsersAsync(userId, username);
-        return Ok(result);
+        var (_, statusCode, response) = await _authService.LoginAsync(request);
+        return StatusCode(statusCode, response);
     }
 }
