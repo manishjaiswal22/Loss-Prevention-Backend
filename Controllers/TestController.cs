@@ -82,4 +82,48 @@ public class TestController : ControllerBase
             });
         }
     }
+
+    /// <summary>
+    /// Fetch user details using stored procedure [dbo].[sp_GetUserDetails]
+    /// </summary>
+    [HttpGet("users")]
+    public async Task<IActionResult> GetUsers(
+        [FromQuery] string? username, 
+        [FromQuery] int? userId, 
+        [FromQuery] int? isStatus)
+    {
+        try
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            var parameters = new
+            {
+                UserId = userId,
+                Username = username,
+                Password = (string?)null,
+                IsStatus = isStatus
+            };
+
+            var users = await connection.QueryAsync(
+                "sp_GetUserDetails",
+                parameters,
+                commandType: CommandType.StoredProcedure
+            );
+
+            return Ok(new
+            {
+                success = true,
+                count = users.Count(),
+                data = users
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calling sp_GetUserDetails");
+            return StatusCode(500, new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+    }
 }
